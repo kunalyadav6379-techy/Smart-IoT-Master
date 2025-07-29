@@ -16,6 +16,7 @@ const fs = require('fs').promises;
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
+const crypto = require('crypto');
 
 // Initialize Express app
 const app = express();
@@ -31,6 +32,147 @@ app.use(express.urlencoded({ extended: true })); // URL encoding
 app.use(morgan('combined')); // Logging
 
 
+
+// Authentication system
+class AuthSystem {
+    constructor() {
+        this.userDataFile = 'user_data.json';
+        this.sessions = new Map(); // Active sessions
+        this.users = new Map(); // User credentials
+        this.loadUsers();
+        this.initializeDefaultUser();
+    }
+
+    async loadUsers() {
+        try {
+            const data = await fs.readFile(this.userDataFile, 'utf8');
+            const parsedData = JSON.parse(data);
+            
+            if (parsedData.users) {
+                Object.entries(parsedData.users).forEach(([username, userData]) => {
+                    this.users.set(username, userData);
+                });
+            }
+            
+            console.log(`🔐 Loaded ${this.users.size} users from ${this.userDataFile}`);
+        } catch (error) {
+            console.log(`ℹ️  No existing user data file found, creating default user`);
+            this.users = new Map();
+        }
+    }
+
+    async saveUsers() {
+        try {
+            const usersObject = Object.fromEntries(this.users);
+            const data = {
+                users: usersObject,
+                last_updated: new Date().toISOString()
+            };
+
+            await fs.writeFile(this.userDataFile, JSON.stringify(data, null, 2));
+            console.log(`🔐 User data saved to ${this.userDataFile}`);
+        } catch (error) {
+            console.error(`❌ Error saving user data: ${error.message}`);
+        }
+    }
+
+    initializeDefaultUser() {
+        // Create default admin user if no users exist
+        if (this.users.size === 0) {
+            const defaultUser = {
+                username: 'admin',
+                password: this.hashPassword('admin123'),
+                email: 'admin@iotmaster.com',
+                role: 'admin',
+                created_at: new Date().toISOString(),
+                last_login: null,
+                is_active: true
+            };
+            
+            this.users.set('admin', defaultUser);
+            this.saveUsers();
+            console.log('🔐 Default admin user created (username: admin, password: admin123)');
+        }
+    }
+
+    hashPassword(password) {
+        return crypto.createHash('sha256').update(password).digest('hex');
+    }
+
+    generateToken() {
+        return crypto.randomBytes(32).toString('hex');
+    }
+
+    async login(username, password) {
+        const user = this.users.get(username);
+        
+        if (!user || !user.is_active) {
+            return { success: false, message: 'Invalid credentials' };
+        }
+
+        const hashedPassword = this.hashPassword(password);
+        if (user.password !== hashedPassword) {
+            return { success: false, message: 'Invalid credentials' };
+        }
+
+        // Generate session token
+        const token = this.generateToken();
+        const sessionData = {
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            login_time: new Date().toISOString(),
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+        };
+
+        this.sessions.set(token, sessionData);
+
+        // Update last login
+        user.last_login = new Date().toISOString();
+        this.users.set(username, user);
+        this.saveUsers();
+
+        return {
+            success: true,
+            token: token,
+            user: {
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                last_login: user.last_login
+            },
+            expires_at: sessionData.expires_at
+        };
+    }
+
+    logout(token) {
+        if (this.sessions.has(token)) {
+            this.sessions.delete(token);
+            return { success: true, message: 'Logged out successfully' };
+        }
+        return { success: false, message: 'Invalid session' };
+    }
+
+    validateToken(token) {
+        const session = this.sessions.get(token);
+        
+        if (!session) {
+            return { valid: false, message: 'Invalid token' };
+        }
+
+        // Check if token is expired
+        if (new Date() > new Date(session.expires_at)) {
+            this.sessions.delete(token);
+            return { valid: false, message: 'Token expired' };
+        }
+
+        return { valid: true, session: session };
+    }
+
+    getActiveSessionsCount() {
+        return this.sessions.size;
+    }
+}
 
 // In-memory storage for high performance
 class BlynkServer {
@@ -228,6 +370,7 @@ class CPUTemperature {
 
 // Initialize server
 const blynk = new BlynkServer();
+const auth = new AuthSystem();
 
 // Routes
 
@@ -446,6 +589,131 @@ app.put('/api/buzzer/beeplevel', (req, res) => {
     } catch (error) {
         console.error('❌ Error setting beep level:', error.message);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * Authentication endpoints
+ */
+
+/**
+ * User login
+ */
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Username and password are required' 
+            });
+        }
+
+        const result = await auth.login(username, password);
+
+        if (result.success) {
+            res.json(result);
+        } else {
+            res.status(401).json(result);
+        }
+    } catch (error) {
+        console.error('❌ Error during login:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error' 
+        });
+    }
+});
+
+/**
+ * User logout
+ */
+app.post('/api/auth/logout', (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Token is required' 
+            });
+        }
+
+        const result = auth.logout(token);
+        res.json(result);
+    } catch (error) {
+        console.error('❌ Error during logout:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error' 
+        });
+    }
+});
+
+/**
+ * Validate token
+ */
+app.get('/api/auth/validate', (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(400).json({ 
+                valid: false, 
+                message: 'Token is required' 
+            });
+        }
+
+        const result = auth.validateToken(token);
+        
+        if (result.valid) {
+            res.json(result);
+        } else {
+            res.status(401).json(result);
+        }
+    } catch (error) {
+        console.error('❌ Error validating token:', error.message);
+        res.status(500).json({ 
+            valid: false, 
+            message: 'Internal server error' 
+        });
+    }
+});
+
+/**
+ * Get current user info
+ */
+app.get('/api/auth/me', (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Token is required' 
+            });
+        }
+
+        const validation = auth.validateToken(token);
+        
+        if (!validation.valid) {
+            return res.status(401).json({ 
+                success: false, 
+                message: validation.message 
+            });
+        }
+
+        res.json({
+            success: true,
+            user: validation.session
+        });
+    } catch (error) {
+        console.error('❌ Error getting user info:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error' 
+        });
     }
 });
 

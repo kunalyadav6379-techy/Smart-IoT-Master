@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../providers/theme_provider.dart';
 import '../utils/cupertino_utils.dart';
+import '../services/auth_service.dart';
 import 'beep_level_screen.dart';
 import 'trigger_level_screen.dart';
 
@@ -130,6 +131,14 @@ class SettingsScreen extends StatelessWidget {
                     Colors.cyan,
                     null,
                   ),
+
+                  const SizedBox(height: 32),
+
+                  // Account Section
+                  _buildSectionHeader('Account'),
+                  const SizedBox(height: 12),
+
+                  _buildLogoutButton(context),
 
                   const SizedBox(height: 32),
 
@@ -551,6 +560,139 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showLogoutConfirmation(context),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: themeProvider.cardBackgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: themeProvider.borderColor,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                CupertinoIcons.square_arrow_right,
+                color: Colors.red,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sign Out',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: themeProvider.textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Sign out of your account',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: themeProvider.secondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              color: themeProvider.secondaryTextColor,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoActionSheet(
+          title: const Text(
+            'Sign Out',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          message: const Text(
+            'Are you sure you want to sign out of your account?',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () async {
+                Navigator.pop(context);
+                await _handleLogout(context);
+              },
+              child: const Text('Sign Out'),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
+    try {
+      // Show loading toast
+      CupertinoUtils.showInfoToast(context, 'Signing out...');
+      
+      final authService = AuthService();
+      final success = await authService.logout();
+      
+      if (success) {
+        CupertinoUtils.showSuccessToast(
+          context,
+          'Signed out successfully',
+        );
+      } else {
+        CupertinoUtils.showErrorToast(
+          context,
+          'Error signing out. Please try again.',
+        );
+      }
+    } catch (e) {
+      CupertinoUtils.showErrorToast(
+        context,
+        'Network error. Please try again.',
+      );
+    }
   }
 
   Widget _buildDeveloperCredits() {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'providers/theme_provider.dart';
-import 'screens/splash_screen.dart';
+import 'screens/auth_wrapper.dart';
 
 void main() {
   runApp(const WaterTankApp());
@@ -99,7 +99,7 @@ class _WaterTankAppState extends State<WaterTankApp> {
               primaryColor: _themeProvider.textColor,
             ),
           ),
-          home: SplashScreen(themeProvider: _themeProvider),
+          home: AuthWrapper(themeProvider: _themeProvider),
           debugShowCheckedModeBanner: false,
         );
       },
