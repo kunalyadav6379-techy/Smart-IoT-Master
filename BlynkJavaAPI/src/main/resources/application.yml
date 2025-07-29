@@ -1,0 +1,58 @@
+# Blynk Java API Configuration
+# Optimized for high performance and low latency
+
+server:
+  port: 5001
+  address: 0.0.0.0
+  compression:
+    enabled: true
+    mime-types: application/json,text/plain
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    connection-timeout: 20000
+    max-connections: 8192
+
+spring:
+  application:
+    name: blynk-java-api
+  
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+  
+  web:
+    resources:
+      add-mappings: false
+
+# Logging configuration
+logging:
+  level:
+    com.blynk: INFO
+    org.springframework.web: WARN
+    org.apache.tomcat: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+# Application info
+info:
+  app:
+    name: Blynk Java API
+    description: High-performance Blynk-like API server
+    version: 2.0.0
+    framework: Spring Boot
