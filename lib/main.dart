@@ -89,14 +89,19 @@ class _WaterTankAppState extends State<WaterTankApp> {
     return AnimatedBuilder(
       animation: _themeProvider,
       builder: (context, child) {
-        return CupertinoApp(
+        return MaterialApp(
           title: 'IoT Monitor',
-          theme: CupertinoThemeData(
+          theme: ThemeData(
             brightness: _themeProvider.isDarkMode ? Brightness.dark : Brightness.light,
-            primaryColor: CupertinoColors.systemBlue,
+            primarySwatch: Colors.blue,
             scaffoldBackgroundColor: _themeProvider.backgroundColor,
-            textTheme: CupertinoTextThemeData(
-              primaryColor: _themeProvider.textColor,
+            textTheme: TextTheme(
+              bodyLarge: TextStyle(color: _themeProvider.textColor),
+              bodyMedium: TextStyle(color: _themeProvider.textColor),
+            ),
+            appBarTheme: AppBarTheme(
+              backgroundColor: _themeProvider.backgroundColor,
+              foregroundColor: _themeProvider.textColor,
             ),
           ),
           home: AuthWrapper(themeProvider: _themeProvider),

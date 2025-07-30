@@ -68,9 +68,9 @@ class _LoginScreenState extends State<LoginScreen>
       _slideController.forward();
     });
 
-    // Set default credentials for demo
-    _usernameController.text = 'admin';
-    _passwordController.text = 'admin123';
+    // Initialize with empty fields
+    _usernameController.text = '';
+    _passwordController.text = '';
   }
 
   @override
@@ -143,6 +143,8 @@ class _LoginScreenState extends State<LoginScreen>
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Container(
+            width: double.infinity,
+            height: double.infinity,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -158,8 +160,15 @@ class _LoginScreenState extends State<LoginScreen>
             child: SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height - 
+                              MediaQuery.of(context).padding.top - 
+                              MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
                     const SizedBox(height: 60),
                     
                     // App Logo and Title
@@ -349,49 +358,6 @@ class _LoginScreenState extends State<LoginScreen>
                                 
                                 // Login Button
                                 _buildLoginButton(),
-                                
-                                const SizedBox(height: 20),
-                                
-                                // Demo Credentials Info
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            CupertinoIcons.info_circle,
-                                            color: const Color(0xFF4F46E5),
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Text(
-                                            'Demo Credentials',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF4F46E5),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Username: admin\nPassword: admin123',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFF6B7280),
-                                          fontFamily: 'monospace',
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -416,7 +382,9 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     
                     const SizedBox(height: 20),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
